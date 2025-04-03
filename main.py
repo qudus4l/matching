@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.routers import jd_router
+from routers import api_router
 
 # Load environment variables
 load_dotenv()
@@ -15,18 +15,18 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("jd_generator.log"),
+        logging.FileHandler("unified_api.log"),
         logging.StreamHandler(sys.stdout)
     ]
 )
 
 logger = logging.getLogger(__name__)
-logger.info("Starting JD Generator API")
+logger.info("Starting Unified Matching API")
 
 # Initialize FastAPI application
 app = FastAPI(
-    title="JD Generator API",
-    description="API for generating job descriptions based on employer information",
+    title="Unified Matching API",
+    description="API for job description generation and AI-based profile matching",
     version="1.0.0"
 )
 
@@ -40,16 +40,24 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(jd_router.router)
+app.include_router(api_router.router)
+logger.info("API router initialized")
 
 # Root endpoint
 @app.get("/")
 async def root():
     """Return welcome message."""
-    return {"message": "Welcome to the JD Generator API!"}
+    logger.info("Root endpoint accessed")
+    return {
+        "message": "Welcome to the Unified Matching API",
+        "description": "This API provides job description generation and AI-based profile matching",
+        "documentation": "/docs",
+        "version": "1.0.0"
+    }
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
     """Return API health status."""
-    return {"status": "OK", "service": "JD Generator API"} 
+    logger.info("Health check endpoint accessed")
+    return {"status": "OK", "service": "Unified Matching API"} 

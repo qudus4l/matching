@@ -6,11 +6,11 @@ import openai
 from typing import List, Dict, Any, Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from app.models.models import (
+from models.models import (
     User, BusinessData, JobDescription, Problem, AIMatchResult, 
     MatchReason, PayRange
 )
-from app.services.embedding_service import EmbeddingService
+from services.embedding_service import EmbeddingService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

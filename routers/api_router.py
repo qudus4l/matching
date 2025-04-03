@@ -1,11 +1,11 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.models.models import (
+from models.models import (
     EmployerResponse, JobDescriptionResponse, MatchInput, 
     SimpleMatchResult, AIMatchResult
 )
-from app.services.unified_service import UnifiedService
+from services.unified_service import UnifiedService
 
 # Configure logging
 logger = logging.getLogger(__name__)
