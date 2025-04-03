@@ -1,0 +1,50 @@
+{
+  "status": "OK",
+  "user": {
+    "_id": "6057cfd8cc42f31212222111",
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "email": "jane.smith@example.com",
+    "categories": [
+      "Quantitative Analyst (Quant)"
+    ],
+    "specialities": [
+      "Statistical Analysis"
+    ],
+    "level": "Mid-level",
+    "skills": [
+      "Python",
+      "R",
+      "SQL",
+      "Statistical Analysis",
+      "Financial Modeling",
+      "Risk Management",
+      "ETL",
+      "Data Visualization",
+      "Machine Learning",
+      "Business Intelligence"
+    ],
+    "workExperience": [
+      {
+        "company": "Goldman Sachs",
+        "title": "Associate Quantitative Analyst",
+        "description": "Developed financial models and conducted risk assessments for trading strategies.",
+        "startDate": "2022-01-01",
+        "endDate": "2023-05-01",
+        "location": "New York, NY"
+      }
+    ],
+    "verified": true,
+    "active": true,
+    "categoriesAndSpecialitiesAdded": true,
+    "educationHistory": [],
+    "skillsAdded": true,
+    "workExperienceAdded": true,
+    "educationHistoryAdded": true,
+    "bio": "Experienced quantitative analyst with a background in financial modeling and risk assessment.",
+    "bioAdded": true,
+    "onboarded": true,
+    "profileCompletion": 100,
+    "userType": "fellow"
+  }
+}
