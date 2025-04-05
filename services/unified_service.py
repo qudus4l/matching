@@ -442,7 +442,7 @@ class UnifiedService:
             else:
                 # If no end date, assume current job (use present date)
                 import datetime
-                end_date = datetime.datetime.now()
+                end_date = datetime.datetime.now(datetime.timezone.utc)
             
             # Add to total years
             duration = end_date - start_date
@@ -602,17 +602,24 @@ class UnifiedService:
     
     def _ensure_datetime(self, dt):
         """Ensure a value is a datetime."""
+        from datetime import datetime, timezone
+        
         if isinstance(dt, str):
-            from datetime import datetime
             try:
-                return datetime.fromisoformat(dt.replace('Z', '+00:00'))
+                # Convert ISO format string to timezone-aware datetime
+                return datetime.fromisoformat(dt.replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
             except:
                 try:
-                    # Try parsing with different format
-                    return datetime.strptime(dt, "%Y-%m-%dT%H:%M:%S.%fZ")
+                    # Try parsing with different format and set UTC timezone
+                    return datetime.strptime(dt, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
                 except:
-                    # Return a default datetime
-                    return datetime(2000, 1, 1)
+                    # Return a default datetime with UTC timezone
+                    return datetime(2000, 1, 1, tzinfo=timezone.utc)
+        
+        # If it's already a datetime, ensure it has timezone info
+        if isinstance(dt, datetime) and dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+            
         return dt
     
     def _generate_improvement_suggestions(self, user: User, problem: Problem, 
