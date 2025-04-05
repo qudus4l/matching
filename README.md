@@ -1,4 +1,4 @@
-# Unified Job Matching API
+# AI API
 
 A streamlined API for Problem generation and matching user profiles with job requirements using AI techniques.
 

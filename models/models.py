@@ -20,20 +20,6 @@ class Education(BaseModel):
     description: Optional[str] = None
     _id: str
 
-class BookmarkedJob(BaseModel):
-    _id: str
-    title: str
-    company: str
-    location: str
-    salary: str
-    applicationDeadline: datetime
-    description: str
-    postedDate: datetime
-    type: str
-    workArrangement: str
-    status: str
-    noOfApplicants: int
-
 class User(BaseModel):
     _id: str
     firstName: str
@@ -61,7 +47,6 @@ class User(BaseModel):
     phone: Optional[str] = None
     state: Optional[str] = None
     photoUrl: Optional[str] = None
-    bookmarkedJobs: Optional[List[BookmarkedJob]] = None
     userType: str
 
 class UserResponse(BaseModel):
