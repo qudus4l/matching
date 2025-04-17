@@ -36,9 +36,9 @@ def convert_to_simple_result(result: AIMatchResult) -> SimpleMatchResult:
 @router.post("/generate-jd", response_model=JobDescriptionResponse)
 async def generate_job_description(data: EmployerResponse):
     """
-    Generate a job description based on employer information.
+    Generate multiple job descriptions based on employer information.
     
-    Takes employer profile data and creates a structured job description with:
+    Takes employer profile data and creates four structured job descriptions with:
     - Appropriate salary range
     - Required field
     - Job types
@@ -59,15 +59,15 @@ async def generate_job_description(data: EmployerResponse):
         # Initialize unified service
         unified_service = UnifiedService()
         
-        # Generate job description
-        job_description = unified_service.generate_job_description(employer)
+        # Generate job descriptions
+        job_descriptions = unified_service.generate_job_description(employer)
         
         # Log and return result
-        logger.info(f"Generated JD for field: {job_description.fellowField}, skills: {job_description.skills}")
-        return JobDescriptionResponse(problem=job_description)
+        logger.info(f"Generated {len(job_descriptions)} JDs for employer: {employer.companyName}")
+        return JobDescriptionResponse(problems=job_descriptions)
     except Exception as e:
-        logger.error(f"Error generating job description: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating job description: {str(e)}")
+        logger.error(f"Error generating job descriptions: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating job descriptions: {str(e)}")
 
 @router.post("/ai-match", response_model=SimpleMatchResult)
 async def ai_match_user_to_problem(data: MatchInput, use_openai_completion: bool = False):

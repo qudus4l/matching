@@ -87,7 +87,7 @@ class JobDescription(BaseModel):
     _id: Optional[str] = None  # Added to make compatible with Problem
 
 class JobDescriptionResponse(BaseModel):
-    problem: JobDescription
+    problems: List[JobDescription]
     
 # For compatibility with AI Matching API
 Problem = JobDescription

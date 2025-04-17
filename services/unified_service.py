@@ -47,55 +47,83 @@ class UnifiedService:
     
     # ===== JD GENERATION METHODS =====
     
-    def generate_job_description(self, employer: BusinessData) -> JobDescription:
+    def generate_job_description(self, employer: BusinessData) -> List[JobDescription]:
         """
-        Generate a job description based on employer information using OpenAI.
+        Generate multiple job descriptions based on employer information using OpenAI.
         
         Args:
             employer: The employer business data
             
         Returns:
-            JobDescription with all fields populated
+            List of JobDescription objects with all fields populated (4 different job descriptions)
         """
-        logger.info(f"Generating job description for {employer.companyName} using OpenAI")
+        logger.info(f"Generating job descriptions for {employer.companyName} using OpenAI")
         
-        # Create a prompt for OpenAI
-        prompt = self._create_jd_prompt(employer)
+        job_descriptions = []
         
-        try:
-            # Call OpenAI API
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",  # Can be upgraded to GPT-4 for better results
-                messages=[
-                    {"role": "system", "content": "You are a skilled HR professional who creates detailed job descriptions based on employer information. Create a structured job description in JSON format."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=1000
-            )
+        # Try to generate 4 different job descriptions
+        for i in range(4):
+            # Create a prompt for OpenAI with slight variations for diversity
+            prompt = self._create_jd_prompt(employer, variation=i)
             
-            # Extract the job description from OpenAI's response
-            jd_text = response.choices[0].message.content.strip()
-            
-            # Parse JSON from OpenAI's response
             try:
-                jd_data = json.loads(jd_text)
+                # Call OpenAI API
+                response = openai.chat.completions.create(
+                    model="gpt-3.5-turbo",  # Can be upgraded to GPT-4 for better results
+                    messages=[
+                        {"role": "system", "content": "You are a skilled HR professional who creates detailed job descriptions based on employer information. Create a structured job description in JSON format."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7 + (i * 0.1),  # Increase temperature slightly for more variation
+                    max_tokens=1000
+                )
                 
-                # Create and return the job description
-                job_description = self._convert_to_job_description(jd_data)
-                logger.info(f"Successfully generated JD with OpenAI for {employer.companyName}")
-                return job_description
+                # Extract the job description from OpenAI's response
+                jd_text = response.choices[0].message.content.strip()
                 
-            except json.JSONDecodeError:
-                logger.error(f"Failed to parse JSON from OpenAI response: {jd_text}")
-                return self._create_fallback_job_description(employer)
-                
-        except Exception as e:
-            logger.error(f"Error using OpenAI to generate job description: {str(e)}")
-            return self._create_fallback_job_description(employer)
+                # Parse JSON from OpenAI's response
+                try:
+                    jd_data = json.loads(jd_text)
+                    
+                    # Create and return the job description
+                    job_description = self._convert_to_job_description(jd_data)
+                    logger.info(f"Successfully generated JD #{i+1} with OpenAI for {employer.companyName}")
+                    job_descriptions.append(job_description)
+                    
+                except json.JSONDecodeError:
+                    logger.error(f"Failed to parse JSON from OpenAI response: {jd_text}")
+                    # Add a fallback job description with some variation
+                    job_descriptions.append(self._create_fallback_job_description(employer, variation=i))
+                    
+            except Exception as e:
+                logger.error(f"Error using OpenAI to generate job description #{i+1}: {str(e)}")
+                # Add a fallback job description with some variation
+                job_descriptions.append(self._create_fallback_job_description(employer, variation=i))
+        
+        # If we couldn't generate any job descriptions, create at least one fallback
+        if not job_descriptions:
+            job_descriptions.append(self._create_fallback_job_description(employer))
+            
+        # Ensure we return exactly 4 job descriptions
+        while len(job_descriptions) < 4:
+            # Create additional fallback job descriptions with variations
+            variation = len(job_descriptions)
+            job_descriptions.append(self._create_fallback_job_description(employer, variation=variation))
+        
+        return job_descriptions
     
-    def _create_jd_prompt(self, employer: BusinessData) -> str:
-        """Create a prompt for OpenAI based on employer data."""
+    def _create_jd_prompt(self, employer: BusinessData, variation: int = 0) -> str:
+        """Create a prompt for OpenAI based on employer data with variations."""
+        
+        # Different prompts for different variations
+        focus_variations = [
+            "Focus on technical skills and expertise required for the role.",
+            "Focus on problem-solving abilities and business impact of the role.",
+            "Focus on team collaboration and communication aspects of the role.",
+            "Focus on innovation and creative thinking aspects of the role."
+        ]
+        
+        focus = focus_variations[variation % len(focus_variations)]
         
         prompt = f"""
         Please create a detailed job description based on the following employer information:
@@ -123,6 +151,8 @@ class UnifiedService:
         
         Expected Outcomes:
         {', '.join(employer.expectedOutcome) if employer.expectedOutcome else 'Not specified'}
+        
+        Additional guidance: {focus}
         
         Please generate a complete job description in the following JSON format:
         {{
@@ -180,28 +210,63 @@ class UnifiedService:
             niceToHaves=nice_to_haves
         )
     
-    def _create_fallback_job_description(self, employer: BusinessData) -> JobDescription:
+    def _create_fallback_job_description(self, employer: BusinessData, variation: int = 0) -> JobDescription:
         """Create a fallback job description if OpenAI fails."""
-        logger.info(f"Using fallback JD generation for {employer.companyName}")
+        logger.info(f"Using fallback JD generation for {employer.companyName} (variation: {variation})")
         
         # Use whatever information we have from the employer
-        field = employer.categories[0] if employer.categories else "Data Analysis"
-        skills = employer.skills if employer.skills and len(employer.skills) >= 3 else ["Analytical Thinking", "Problem Solving", "Communication", "Data Analysis"]
+        if employer.categories and len(employer.categories) > variation:
+            field = employer.categories[variation]
+        else:
+            field_options = ["Data Analysis", "Business Intelligence", "Data Science", "Machine Learning"]
+            field = field_options[variation % len(field_options)]
+            
+        if employer.skills and len(employer.skills) >= 3:
+            skills = employer.skills
+        else:
+            # Different skill sets for different variations
+            skill_sets = [
+                ["Analytical Thinking", "Problem Solving", "Communication", "Data Analysis"],
+                ["SQL", "Data Visualization", "Statistical Analysis", "Excel"],
+                ["Python", "R", "Machine Learning", "Data Mining"],
+                ["Big Data", "Data Governance", "ETL", "Business Intelligence"]
+            ]
+            skills = skill_sets[variation % len(skill_sets)]
+        
+        # Different job types for different variations
+        job_type_options = [
+            ["Data Analysis", "Business Intelligence"],
+            ["Data Science", "Quantitative Analysis"],
+            ["Machine Learning", "Artificial Intelligence"],
+            ["Data Engineering", "Data Architecture"]
+        ]
+        job_types = job_type_options[variation % len(job_type_options)]
+        
+        # Different salary ranges for different variations
+        salary_options = [
+            {"min": 5000, "max": 10000},
+            {"min": 7000, "max": 12000},
+            {"min": 6000, "max": 11000},
+            {"min": 8000, "max": 13000}
+        ]
+        salary = salary_options[variation % len(salary_options)]
         
         description = f"We are looking for a skilled professional to help with data analysis and business challenges at {employer.companyName}."
         if employer.problems:
-            description += f" Key problems to solve include {' and '.join(employer.problems).lower()}."
+            problem_index = variation % len(employer.problems)
+            description += f" Key problems to solve include {employer.problems[problem_index].lower()}."
             
         qualifications = f"Experience in {field} or a related field. Strong technical and analytical skills."
         
         nice_to_haves = "Experience with data analysis tools and business intelligence platforms."
-        if employer.dataAnalysisTools:
-            nice_to_haves = f"Experience with {', '.join(employer.dataAnalysisTools)}."
+        if employer.dataAnalysisTools and len(employer.dataAnalysisTools) > 0:
+            tool_index = variation % len(employer.dataAnalysisTools)
+            nice_to_haves = f"Experience with {employer.dataAnalysisTools[tool_index]}."
         
         return JobDescription(
-            payRange=PayRange(min=5000, max=10000),
+            payRange=PayRange(min=salary["min"], max=salary["max"]),
             fellowField=field,
-            type=["Data Analysis", "Business Intelligence"],
+            type=job_types,
             skills=skills[:5],
             description=description,
             candidatesQualification=qualifications,
