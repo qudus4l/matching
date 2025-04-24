@@ -41,8 +41,6 @@ class User(BaseModel):
     verified: bool
     active: bool
     skills: List[str]
-    categories: List[str]
-    specialities: List[str]
     categoriesAndSpecialitiesAdded: bool
     workExperience: List[WorkExperience]
     educationHistory: List[Education]

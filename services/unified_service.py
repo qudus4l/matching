@@ -292,7 +292,7 @@ class UnifiedService:
         skills_match = self._calculate_skills_match(user.skills, problem.skills)
         logger.info(f"Skills match: {skills_match}")
         
-        field_match = self._calculate_field_match(user.categories, user.specialities, problem.fellowField)
+        field_match = self._calculate_field_match([], [], problem.fellowField)
         logger.info(f"Field match: {field_match}")
         
         experience_match = self._calculate_experience_match(user.workExperience, problem.candidatesQualification)
@@ -435,7 +435,8 @@ class UnifiedService:
     
     def _calculate_field_match(self, categories: List[str], specialities: List[str], required_field: str) -> Dict[str, Any]:
         """Calculate field match using embeddings for semantic similarity."""
-        all_user_fields = categories + specialities
+        # Using empty lists for categories and specialities
+        all_user_fields = []
         
         if not required_field:
             return {
@@ -449,7 +450,7 @@ class UnifiedService:
             return {
                 "matched": False,
                 "score": 0.0,
-                "details": "User has no fields or specialities",
+                "details": "No field information available",
                 "matched_items": []
             }
         
@@ -628,13 +629,9 @@ class UnifiedService:
         if user.bio:
             parts.append(f"Bio: {user.bio}")
         
-        # Skills, categories and specialties
+        # Skills
         if user.skills:
             parts.append(f"Skills: {', '.join(user.skills)}")
-        if user.categories:
-            parts.append(f"Fields: {', '.join(user.categories)}")
-        if user.specialities:
-            parts.append(f"Specialties: {', '.join(user.specialities)}")
         
         # Work experience
         if user.workExperience:
@@ -700,8 +697,8 @@ class UnifiedService:
         
         # Field suggestions
         if "Field" in went_against:
-            if problem.fellowField and problem.fellowField not in user.categories + user.specialities:
-                suggestions.append(f"Consider adding '{problem.fellowField}' to your fields or specialties")
+            if problem.fellowField:
+                suggestions.append(f"Consider gaining experience in '{problem.fellowField}' field")
         
         # Experience suggestions
         if "Experience" in went_against:
