@@ -38,3 +38,8 @@ ENV/
 
 # OS specific
 .DS_Store
+
+# Node modules
+node_modules/
+test*
+example_usage.js
