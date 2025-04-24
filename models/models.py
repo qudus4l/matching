@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator
 from datetime import datetime
+import uuid
 
 class WorkExperience(BaseModel):
     title: str
@@ -9,7 +10,13 @@ class WorkExperience(BaseModel):
     startDate: datetime
     endDate: Optional[datetime] = None
     description: Optional[str] = None
-    _id: str
+    _id: Optional[str] = None  # Changed to Optional with default set to None
+
+    @root_validator(pre=True)
+    def set_id_if_not_provided(cls, values):
+        if "_id" not in values or values["_id"] is None:
+            values["_id"] = f"exp-{str(uuid.uuid4())[:8]}"
+        return values
 
 class Education(BaseModel):
     school: str
@@ -18,10 +25,16 @@ class Education(BaseModel):
     startDate: datetime
     endDate: datetime
     description: Optional[str] = None
-    _id: str
+    _id: Optional[str] = None  # Changed to Optional with default set to None
+
+    @root_validator(pre=True)
+    def set_id_if_not_provided(cls, values):
+        if "_id" not in values or values["_id"] is None:
+            values["_id"] = f"edu-{str(uuid.uuid4())[:8]}"
+        return values
 
 class User(BaseModel):
-    _id: str
+    _id: Optional[str] = None  # Changed to Optional with default set to None
     firstName: str
     lastName: str
     email: str
@@ -49,9 +62,22 @@ class User(BaseModel):
     photoUrl: Optional[str] = None
     userType: str
 
+    @root_validator(pre=True)
+    def set_id_if_not_provided(cls, values):
+        if "_id" not in values or values["_id"] is None:
+            values["_id"] = f"user-{str(uuid.uuid4())[:8]}"
+        return values
+
 class UserResponse(BaseModel):
     status: str
     user: User
+
+    @root_validator(pre=True)
+    def normalize_status(cls, values):
+        # Ensure status is set to "OK" if it's something else
+        if "status" in values and values["status"] != "OK":
+            values["status"] = "OK"
+        return values
 
 class BusinessData(BaseModel):
     companyName: str

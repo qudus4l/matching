@@ -1,5 +1,6 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from models.models import (
     EmployerResponse, JobDescriptionResponse, MatchInput, 
@@ -84,7 +85,9 @@ async def ai_match_user_to_problem(data: MatchInput, use_openai_completion: bool
         use_openai_completion: Whether to use OpenAI completions for recommendations
     """
     try:
+        # Log the request with the automatically fixed ID
         logger.info(f"Received AI match request for user: {data.user_data.user.firstName} {data.user_data.user.lastName}")
+        logger.info(f"User ID (possibly auto-generated): {data.user_data.user._id}")
         logger.info(f"Job field: {data.problem.fellowField}")
         
         # Get user and problem from input data
@@ -123,7 +126,9 @@ async def ai_match_user_to_problem_detailed(data: MatchInput, use_openai_complet
         use_openai_completion: Whether to use OpenAI completions for recommendations
     """
     try:
+        # Log the request with the automatically fixed ID
         logger.info(f"Received detailed AI match request for user: {data.user_data.user.firstName} {data.user_data.user.lastName}")
+        logger.info(f"User ID (possibly auto-generated): {data.user_data.user._id}")
         logger.info(f"Job field: {data.problem.fellowField}")
         
         # Get user and problem from input data

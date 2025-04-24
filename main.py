@@ -1,8 +1,11 @@
 import os
 import logging
 import sys
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from dotenv import load_dotenv
 
 from routers import api_router
@@ -38,6 +41,19 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers
 )
+
+# Add global exception handler for validation errors
+@app.exception_handler(RequestValidationError)
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Validation error: {str(exc)}")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Invalid request format. Make sure all required fields are present and properly formatted.",
+            "error_details": str(exc)
+        }
+    )
 
 # Include routers
 app.include_router(api_router.router)
