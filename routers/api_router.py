@@ -22,7 +22,7 @@ def convert_to_simple_result(result: AIMatchResult) -> SimpleMatchResult:
     Filter out internal categories like 'Semantic' and 'Concepts'.
     """
     # Define valid categories to show to users
-    valid_categories = ["Skills", "Field", "Experience", "Education", "Job Type", "Qualifications"]
+    valid_categories = ["Skills", "Field", "Experience"]
     
     # Filter what_matched and went_against to only include valid categories
     filtered_matched = [cat for cat in result.what_matched if cat in valid_categories]

@@ -327,18 +327,48 @@ class UnifiedService:
         weighted_scores = [score * weights[area] for area, score in compatibility_by_area.items()]
         overall_match = sum(weighted_scores) * 100
         
-        # Cap at 100 and convert to integer
-        percentage_match = min(int(round(overall_match)), 100)
+        # Different thresholds for different categories
+        match_thresholds = {
+            "Skills": 0.5,       # Lower threshold for skills (easier to match)
+            "Field": 0.6,        # Standard threshold
+            "Experience": 0.5,   # Lower threshold for experience
+            "Semantic": 0.7,     # Higher threshold for semantic (must be more confident)
+            "Concepts": 0.7      # Higher threshold for concepts
+        }
         
-        # Determine what matched and what went against
-        match_threshold = 0.6  # Threshold to consider a category as matched
+        # Determine what matched with variable thresholds
         match_results = {
-            category: score >= match_threshold 
+            category: score >= match_thresholds[category]
             for category, score in compatibility_by_area.items()
         }
         
         what_matched = [category for category, matched in match_results.items() if matched]
         went_against = [category for category, matched in match_results.items() if not matched]
+        
+        # Scaling factor based on number of matched visible categories
+        visible_categories = ["Skills", "Field", "Experience"]
+        visible_matched = [cat for cat in what_matched if cat in visible_categories]
+        visible_match_ratio = len(visible_matched) / len(visible_categories) if visible_categories else 0
+        
+        # Apply scaling to the overall percentage - higher influence from visible categories
+        scaled_match = overall_match * (0.3 + 0.7 * visible_match_ratio)  # Min 30% of raw score
+        
+        # If no visible categories matched, cap at a maximum low percentage
+        if len(visible_matched) == 0:
+            scaled_match = min(scaled_match, 20)  # Cap at 20% if no visible categories matched
+        
+        # Cap at 100 and convert to integer
+        percentage_match = min(int(round(scaled_match)), 100)
+        
+        # Final LLM verification step - may override the percentage in extreme cases
+        verified_percentage = self._verify_match_with_llm(
+            user, 
+            problem, 
+            percentage_match,
+            what_matched,
+            went_against,
+            compatibility_by_area
+        )
         
         # Create detailed reasoning
         detailed_reasoning = [
@@ -376,7 +406,7 @@ class UnifiedService:
         suggestions = self._generate_improvement_suggestions(user, problem, what_matched, went_against)
         
         return AIMatchResult(
-            percentage_match=percentage_match,
+            percentage_match=verified_percentage,
             what_matched=what_matched,
             went_against=went_against,
             detailed_reasoning=detailed_reasoning,
@@ -760,4 +790,107 @@ class UnifiedService:
             
         except Exception as e:
             logger.error(f"Error in OpenAI suggestion generation: {str(e)}")
-            return ["Add relevant skills and experience to your profile to improve match."] 
+            return ["Add relevant skills and experience to your profile to improve match."]
+            
+    def _verify_match_with_llm(self, user: User, problem: Problem, current_percentage: int, 
+                              what_matched: List[str], went_against: List[str], 
+                              compatibility_by_area: Dict[str, float]) -> int:
+        """
+        Verify if the match percentage makes sense and potentially override it in extreme cases.
+        Only changes the score if the LLM is highly confident that the algorithmic score misrepresents the match.
+        
+        Args:
+            user: User profile
+            problem: Job problem
+            current_percentage: Currently calculated match percentage
+            what_matched: Categories that matched
+            went_against: Categories that didn't match
+            compatibility_by_area: Scores by area
+            
+        Returns:
+            Verified or overridden match percentage
+        """
+        # Only perform verification if OpenAI API is available
+        if not self.use_openai_completion or not self.api_key:
+            return current_percentage
+            
+        try:
+            # Create user and job text representations
+            user_text = self._create_user_text(user)
+            job_text = self._create_job_text(problem)
+            
+            # Create a prompt for LLM verification
+            prompt = f"""
+            I need you to assess if the calculated match percentage between a job candidate and job description makes sense.
+            Only suggest an override if there's a clear and significant mismatch between the calculated score and what a hiring manager would reasonably conclude.
+            
+            CANDIDATE PROFILE:
+            {user_text}
+            
+            JOB DESCRIPTION:
+            {job_text}
+            
+            ALGORITHM RESULTS:
+            - Current match percentage: {current_percentage}%
+            - Categories that matched: {', '.join(what_matched) if what_matched else 'None'}
+            - Categories that didn't match: {', '.join(went_against) if went_against else 'None'}
+            - Individual scores:
+              * Skills: {compatibility_by_area.get('Skills', 0) * 100:.0f}%
+              * Field: {compatibility_by_area.get('Field', 0) * 100:.0f}%
+              * Experience: {compatibility_by_area.get('Experience', 0) * 100:.0f}%
+              * Semantic similarity: {compatibility_by_area.get('Semantic', 0) * 100:.0f}%
+              * Concept match: {compatibility_by_area.get('Concepts', 0) * 100:.0f}%
+            
+            Do NOT suggest an override for minor disagreements or slight adjustments.
+            ONLY suggest an override if there's an obvious and extreme mismatch between the calculated score and what's reasonable.
+            
+            Your response must be structured exactly like this:
+            OVERRIDE: [YES or NO]
+            NEW_PERCENTAGE: [a number between 0-100, only if OVERRIDE is YES]
+            REASON: [brief explanation of why the override is necessary or why the current score is appropriate]
+            """
+            
+            # Call OpenAI for verification
+            response = openai.chat.completions.create(
+                model="gpt-4.1-mini-2025-04-14",
+                messages=[
+                    {"role": "system", "content": "You are an expert hiring manager and recruiting specialist."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2,  # Low temperature for more consistent responses
+                max_tokens=150
+            )
+            
+            # Extract verification result
+            result_text = response.choices[0].message.content.strip()
+            
+            # Parse the response
+            override = False
+            new_percentage = current_percentage
+            reason = "No override necessary."
+            
+            for line in result_text.split('\n'):
+                if line.startswith('OVERRIDE:'):
+                    override_text = line.replace('OVERRIDE:', '').strip().upper()
+                    override = override_text == 'YES'
+                elif line.startswith('NEW_PERCENTAGE:') and override:
+                    try:
+                        new_percentage = int(line.replace('NEW_PERCENTAGE:', '').strip())
+                        # Ensure the percentage is within bounds
+                        new_percentage = max(0, min(100, new_percentage))
+                    except ValueError:
+                        # If parsing fails, stick with the current percentage
+                        new_percentage = current_percentage
+                elif line.startswith('REASON:'):
+                    reason = line.replace('REASON:', '').strip()
+            
+            if override:
+                logger.info(f"LLM verification override: {current_percentage}% -> {new_percentage}%. Reason: {reason}")
+                return new_percentage
+            else:
+                logger.info(f"LLM verification confirmed current score: {current_percentage}%. {reason}")
+                return current_percentage
+                
+        except Exception as e:
+            logger.error(f"Error in LLM verification: {str(e)}")
+            return current_percentage  # On error, keep the original percentage 

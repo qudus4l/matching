@@ -370,3 +370,129 @@ This API uses the following open-source libraries:
 - OpenAI API: Embeddings and completions
 - SentenceTransformers: Local embedding model
 - Scikit-learn: For similarity calculations and TF-IDF
+
+# AI Matching Algorithm with LLM Verification
+
+## Overview
+
+The AI matching algorithm evaluates the compatibility between a candidate's profile and a job description by analyzing multiple factors and providing a percentage match score along with insights into which areas matched or didn't match. The final score can be verified by an LLM in extreme cases.
+
+## Matching Components
+
+The algorithm analyzes five key categories:
+
+| Category | Weight | Description | Match Threshold |
+|----------|--------|-------------|----------------|
+| Skills | 25% | Evaluates direct and semantic skill matches | 0.5 (50%) |
+| Field | 15% | Assesses compatibility between user's field and job field | 0.6 (60%) |
+| Experience | 20% | Analyzes work experience duration and relevance | 0.5 (50%) |
+| Semantic | 25% | Measures overall semantic similarity between profile and job | 0.7 (70%) |
+| Concepts | 15% | Identifies shared key concepts using TF-IDF analysis | 0.7 (70%) |
+
+## Calculation Process
+
+1. **Individual Category Scoring**:
+   - Each category produces a score between 0.0 and 1.0
+   - Different thresholds determine if a category is considered "matched"
+
+2. **Weighted Average**:
+   - Raw score = (Skills × 0.25) + (Field × 0.15) + (Experience × 0.20) + (Semantic × 0.25) + (Concepts × 0.15)
+   - Raw percentage = Raw score × 100
+
+3. **Visible Category Scaling**:
+   - Visible categories: Skills, Field, Experience (shown to users)
+   - Hidden categories: Semantic, Concepts (used in calculation but not shown)
+   - Visible match ratio = Number of matched visible categories ÷ 3
+   - Scaled percentage = Raw percentage × (0.3 + 0.7 × Visible match ratio)
+
+4. **Special Case Handling**:
+   - If no visible categories match: Maximum score capped at 20%
+   - Percentage is rounded to nearest integer and capped at 100%
+
+5. **LLM Verification** (Final Step):
+   - An LLM analyzes the full profile, job description, and algorithmic results
+   - Can override the match percentage in extreme cases where the algorithm clearly misrepresents the match
+   - Only activated when extremely confident in the need for an override
+   - Provides reasoning for any override decision
+
+## Category Details
+
+### Skills Match (25%)
+- Direct matching: Exact skill name matches
+- Semantic matching: Similar skills with similarity > 0.8
+- Overall score = (0.7 × Direct match ratio) + (0.3 × Semantic match contribution)
+- Threshold: 0.5 (50%)
+
+### Field Match (15%)
+- Compares job's required field with user's fields
+- Evaluates exact matches and semantic similarity
+- Threshold: 0.6 (60%)
+
+### Experience Match (20%)
+- Calculates total years of work experience
+- Identifies specific year requirements in job qualifications
+- Scores based on ratio of actual years to required years
+- Threshold: 0.5 (50%)
+
+### Semantic Similarity (25%)
+- Creates text representations of user profile and job description
+- Calculates vector similarity using embeddings
+- Threshold: 0.7 (70%)
+
+### Concept Match (15%)
+- Extracts key terms from both profile and job using TF-IDF
+- Identifies common concepts between the two
+- Score = Number of common concepts ÷ Number of job concepts
+- Threshold: 0.7 (70%)
+
+## LLM Verification Details
+
+The LLM verification acts as a safety mechanism to catch edge cases where algorithmic matching might miss important signals. This step:
+
+1. Analyzes the full user profile and job description
+2. Reviews all calculated scores and matched/unmatched categories
+3. Assesses if the algorithmic score reasonably represents the match quality
+4. Only suggests an override if there's a significant mismatch between the calculated score and human judgment
+5. Provides a specific reason for any override decision
+
+The LLM is instructed to be conservative with overrides and only make changes in clear cases where:
+- A candidate with excellent qualifications is scored too low
+- A candidate with clearly insufficient qualifications is scored too high
+
+## API Response
+
+The API returns:
+- **percentage_match**: Final calculated match percentage (after potential LLM verification)
+- **what_matched**: List of visible categories that met their thresholds
+- **went_against**: List of visible categories that didn't meet their thresholds
+
+In the detailed version, it also returns:
+- **detailed_reasoning**: Score and explanation for each category
+- **suggested_improvements**: Suggestions to improve match percentage
+- **semantic_similarity**: Raw semantic similarity score
+- **compatibility_by_area**: Scores for all categories
+
+## Examples
+
+1. **Strong Match (>70%)**:
+   - Multiple skills match directly
+   - Experience meets or exceeds requirements
+   - Field aligns well with job requirements
+   - High semantic similarity
+
+2. **Medium Match (40-70%)**:
+   - Some skills match, others don't
+   - Experience may be slightly below requirements
+   - Moderate semantic similarity
+
+3. **Poor Match (<40%)**:
+   - Few or no matching skills
+   - Experience well below requirements or missing
+   - Low semantic similarity
+   - If no visible categories match, score capped at 20%
+
+4. **LLM Override Examples**:
+   - Algorithm: 35%, LLM: 65% - Candidate has unique qualifications not captured by standard categories
+   - Algorithm: 60%, LLM: 30% - Candidate has major disqualifying factors not captured by the algorithm
+
+This matching system prioritizes visible factors that users can directly improve while still leveraging semantic and conceptual analysis for nuanced matching, with LLM verification as a final quality check in extreme cases.
