@@ -693,26 +693,54 @@ class UnifiedService:
         return "\n".join(parts)
     
     def _ensure_datetime(self, dt):
-        """Ensure a value is a datetime."""
+        """Ensure a value is a datetime with timezone info."""
         from datetime import datetime, timezone
         
         if isinstance(dt, str):
             try:
-                # Convert ISO format string to timezone-aware datetime
-                return datetime.fromisoformat(dt.replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
-            except:
-                try:
-                    # Try parsing with different format and set UTC timezone
-                    return datetime.strptime(dt, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
-                except:
-                    # Return a default datetime with UTC timezone
-                    return datetime(2000, 1, 1, tzinfo=timezone.utc)
+                # First, try to parse as ISO format with timezone
+                if 'Z' in dt or '+' in dt or '-' in dt[-6:]:
+                    # Has timezone info
+                    parsed = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+                    # Ensure it has UTC timezone
+                    if parsed.tzinfo is None:
+                        return parsed.replace(tzinfo=timezone.utc)
+                    return parsed
+                else:
+                    # No timezone info - assume UTC
+                    # Try different formats
+                    for fmt in [
+                        "%Y-%m-%dT%H:%M:%S.%f",
+                        "%Y-%m-%dT%H:%M:%S",
+                        "%Y-%m-%d %H:%M:%S",
+                        "%Y-%m-%d"
+                    ]:
+                        try:
+                            parsed = datetime.strptime(dt, fmt)
+                            # Add UTC timezone
+                            return parsed.replace(tzinfo=timezone.utc)
+                        except ValueError:
+                            continue
+                    
+                    # If none of the formats work, try fromisoformat as last resort
+                    parsed = datetime.fromisoformat(dt)
+                    return parsed.replace(tzinfo=timezone.utc)
+                    
+            except Exception as e:
+                logger.error(f"Error parsing datetime string '{dt}': {str(e)}")
+                # Return a default datetime with UTC timezone
+                return datetime(2000, 1, 1, tzinfo=timezone.utc)
         
-        # If it's already a datetime, ensure it has timezone info
-        if isinstance(dt, datetime) and dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
+        # If it's already a datetime
+        if isinstance(dt, datetime):
+            # Ensure it has timezone info
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
             
-        return dt
+        # If it's neither string nor datetime, log error and return default
+        logger.error(f"Unexpected datetime type: {type(dt)} with value: {dt}")
+        return datetime(2000, 1, 1, tzinfo=timezone.utc)
     
     def _generate_improvement_suggestions(self, user: User, problem: Problem, 
                                      what_matched: List[str], went_against: List[str]) -> List[str]:

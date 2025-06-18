@@ -61,9 +61,15 @@ class User(BaseModel):
     userType: str
 
     @root_validator(pre=True)
-    def set_id_if_not_provided(cls, values):
+    def handle_extra_fields(cls, values):
+        # Set ID if not provided
         if "_id" not in values or values["_id"] is None:
             values["_id"] = f"user-{str(uuid.uuid4())[:8]}"
+        
+        # Remove categories and specialities if they exist (for backward compatibility)
+        values.pop('categories', None)
+        values.pop('specialities', None)
+        
         return values
 
 class UserResponse(BaseModel):
