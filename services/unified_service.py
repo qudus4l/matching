@@ -69,7 +69,7 @@ class UnifiedService:
             try:
                 # Call OpenAI API
                 response = openai.chat.completions.create(
-                    model="gpt-3.5-turbo",  # Can be upgraded to GPT-4 for better results
+                    model="gpt-4.1-nano-2025-04-14",  # Can be upgraded to GPT-4 for better results
                     messages=[
                         {"role": "system", "content": "You are a skilled HR professional who creates detailed job descriptions based on employer information. Create a structured job description in JSON format."},
                         {"role": "user", "content": prompt}
@@ -792,7 +792,7 @@ class UnifiedService:
             """
             
             response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4.1-nano-2025-04-14",
                 messages=[
                     {"role": "system", "content": "You are a career advisor helping job seekers improve their profiles."},
                     {"role": "user", "content": prompt}
